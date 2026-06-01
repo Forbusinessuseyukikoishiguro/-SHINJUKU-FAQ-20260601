@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>うさうさ 受講生レベル別 認識・理解ツール</title>
+<style>
+  /* ===== うさうさ研修工房 共通トンマナ：外部フォント不使用 ===== */
+  :root{
+    --bg:#fff7f2; --bg2:#fdeee6; --card:#ffffff;
+    --ink:#4a3f3a; --ink-soft:#8a766c;
+    --accent:#f08a76; --accent-deep:#d96a55; --accent-soft:#fbe2da;
+    --green:#7fae8e; --green-soft:#e4f0e8;
+    --blue:#6f9bc4; --blue-soft:#e3eef7;
+    --amber:#d9a441; --amber-soft:#fbf0d8;
+    --line:#f0ddd3; --radius:18px; --shadow:0 8px 24px rgba(217,106,85,.10);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; padding:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    color:var(--ink); line-height:1.7; min-height:100vh;
+    background:
+      radial-gradient(circle at 12% 8%, var(--bg2), transparent 40%),
+      radial-gradient(circle at 88% 0%, #fdeaf0, transparent 35%), var(--bg);}
+  .wrap{max-width:900px; margin:0 auto; padding:28px 18px 80px;}
+  header{text-align:center; margin-bottom:8px;}
+  .badge{display:inline-block; font-size:12px; letter-spacing:.08em;
+    color:var(--accent-deep); background:var(--accent-soft);
+    padding:4px 14px; border-radius:999px; margin-bottom:10px;}
+  h1{font-size:25px; margin:0 0 4px;}
+  .lead{color:var(--ink-soft); font-size:14px; margin:0;}
+  .ver{font-size:11px; color:var(--ink-soft); opacity:.7; margin-top:6px;}
+
+  .speech{position:relative; background:var(--green-soft); border:1px solid #cfe3d6;
+    border-radius:var(--radius); padding:14px 16px 14px 54px; margin:18px 0;
+    font-size:13.5px; color:#3f5e4c;}
+  .speech::before{content:"🐰"; position:absolute; left:16px; top:12px; font-size:24px;}
+
+  .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:20px; margin-bottom:18px; border:1px solid var(--line);}
+  .card h2{font-size:16px; margin:0 0 14px; display:flex; align-items:center; gap:8px;}
+  .card h2 .dot{width:9px; height:9px; border-radius:50%; background:var(--accent);}
+
+  label{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 4px; font-weight:600;}
+  label .hint{font-weight:400; opacity:.8;}
+  input[type=text], textarea{width:100%; border:1.5px solid var(--line); border-radius:12px;
+    padding:9px 11px; font-size:14px; font-family:inherit; color:var(--ink); background:#fffdfb;
+    transition:border-color .15s, box-shadow .15s;}
+  input[type=text]:focus, textarea:focus{outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);}
+  textarea{resize:vertical; min-height:54px;}
+  .row{display:flex; flex-wrap:wrap; gap:12px;}
+  .row .field{flex:1; min-width:150px;}
+  .field{margin-bottom:14px;} .field:last-child{margin-bottom:0;}
+
+  /* レベル軸タブ */
+  .axis-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .axis-tab{font-size:13px; padding:8px 14px; border-radius:12px; cursor:pointer;
+    border:1.5px solid var(--line); background:#fffdfb; color:var(--ink-soft); font-weight:600;}
+  .axis-tab.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+
+  /* レベルカード（選択肢） */
+  .levels{display:grid; grid-template-columns:1fr; gap:10px;}
+  .lv{border:1.5px solid var(--line); border-radius:14px; padding:13px 15px; cursor:pointer;
+    background:#fffdfb; transition:all .12s;}
+  .lv:hover{border-color:var(--accent-soft);}
+  .lv.on{border-color:var(--accent); background:var(--accent-soft);}
+  .lv .lv-name{font-weight:700; font-size:14.5px; color:var(--ink);}
+  .lv .lv-desc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  /* 切替ガイド */
+  .guide{border-radius:14px; padding:15px 16px; margin-top:6px; font-size:13.5px;
+    background:var(--blue-soft); border:1px solid #cfe0ee; display:none;}
+  .guide.show{display:block;}
+  .guide h3{margin:0 0 8px; font-size:14px; color:#3a5a76;}
+  .guide .g-block{margin-bottom:10px;}
+  .guide .g-block:last-child{margin-bottom:0;}
+  .guide .g-label{font-weight:700; font-size:12.5px; color:#3a5a76; display:block; margin-bottom:3px;}
+  .guide ul{margin:0; padding-left:18px;}
+  .guide li{margin-bottom:3px;}
+
+  .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;}
+  button.btn{font-family:inherit; font-size:14px; font-weight:700; border:none;
+    border-radius:12px; padding:11px 18px; cursor:pointer; transition:transform .08s, background .15s;}
+  .btn-primary{background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(240,138,118,.4);}
+  .btn-primary:hover{background:var(--accent-deep);}
+  .btn-ghost{background:#fff; color:var(--accent-deep); border:1.5px solid var(--accent-soft);}
+  .btn:active{transform:translateY(1px);}
+
+  .out-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .out-box{background:#fffdfb; border:1.5px dashed var(--accent-soft); border-radius:12px;
+    padding:14px; font-size:13px; white-space:pre-wrap; word-break:break-word;
+    font-family:"SFMono-Regular",Consolas,"Courier New",monospace; color:#5a4a42; margin-top:10px; min-height:40px;}
+  .copied{color:var(--green); font-size:12.5px; font-weight:700;}
+
+  #selftest{font-size:11px; text-align:center; color:var(--ink-soft); margin-top:24px; opacity:.8;}
+  footer{text-align:center; font-size:11px; color:var(--ink-soft); margin-top:28px; opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">うさうさ研修工房</span>
+    <h1>🐰 受講生レベル別 認識・理解ツール</h1>
+    <p class="lead">受講生のレベルに合わせて、確認の観点と聞き方を切り替えながら記録する</p>
+    <p class="ver" id="ver"></p>
+  </header>
+
+  <div class="speech">
+    まずレベルの「軸」を選び、その中で今の受講生に近いものを1つ選んでください。観点と聞き方のヒントが出ます。
+    「分からない」を引き出せたら大成功。答えに詰まったら「確認してお返事いたします」で大丈夫。
+  </div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <h2><span class="dot"></span>基本情報</h2>
+    <div class="row">
+      <div class="field"><label>教科書ページ・単元</label>
+        <input type="text" id="unit" placeholder="例）P42 アクセス制御 / chmod"></div>
+      <div class="field"><label>対象 <span class="hint">（役割表記・氏名は書かない）</span></label>
+        <input type="text" id="who" placeholder="例）受講生A"></div>
+    </div>
+  </div>
+
+  <!-- レベル選択 -->
+  <div class="card">
+    <h2><span class="dot"></span>レベル区分を選ぶ</h2>
+    <div class="axis-tabs" id="axisTabs"></div>
+    <div class="levels" id="levels"></div>
+    <div class="guide" id="guide"></div>
+  </div>
+
+  <!-- 認識・理解の記載 -->
+  <div class="card">
+    <h2><span class="dot"></span>認識・理解の記載</h2>
+    <div class="field"><label>受講生の言葉そのまま <span class="hint">（直さず引用）</span></label>
+      <textarea id="raw" placeholder="例）「権限がどうとか出てよく分からない」"></textarea></div>
+    <div class="field"><label>事実（できていること／できていないこと）</label>
+      <textarea id="fact" placeholder="観察できた事実だけを。解釈は混ぜない"></textarea></div>
+    <div class="field"><label>所感・つまずきの見立て <span class="hint">（事実とは分離）</span></label>
+      <textarea id="view" placeholder="例）概念は理解、計算の慣れが不足"></textarea></div>
+    <div class="field"><label>次の一手（仕組み側で）<span class="hint">「気をつけます」は不可</span></label>
+      <textarea id="next" placeholder="例）8進表記のミニ演習を1問追加"></textarea></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="generate()">🐰 整える</button>
+    <button class="btn btn-ghost" onclick="clearAll()">クリア</button>
+  </div>
+
+  <div class="card" style="margin-top:18px;">
+    <div class="out-head">
+      <h2 style="margin:0;"><span class="dot"></span>記録（コピペ用）</h2>
+      <button class="btn btn-ghost" onclick="copyOut()">コピー</button>
+      <span class="copied" id="copied" style="display:none;">コピーしました ✓</span>
+    </div>
+    <div class="out-box" id="out">「🐰 整える」を押すと、ここに記録が出ます。</div>
+  </div>
+
+  <div id="selftest"></div>
+  <footer>面白きこともなき世を面白く　🐰 うさうさ研修工房</footer>
+</div>
+
+<script>
+  "use strict";
+  const APP_VER = "v1.0.0";
+  document.getElementById("ver").textContent = "APP_VER " + APP_VER;
+
+  /* ===== レベル定義（3軸統合） ===== */
+  const AXES = {
+    "理解度3段階":[
+      {name:"◎ 良好", desc:"自分の言葉で説明できる",
+        check:["他人に説明できるか（言い換え・例え）","応用問題・別パターンに移せるか","“なぜそうなるか”を語れるか"],
+        ask:["「これを後輩に教えるとしたら何て言う？」","「別のケースだとどうなると思う？」"],
+        care:"退屈させない。一歩踏み込んだ課題や“教える側”の役割を渡す。"},
+      {name:"◯ おおむね", desc:"なんとなく分かる・手は動く",
+        check:["手順は追えるが理由が曖昧でないか","用語を正しく使えているか","つまずいた1点が特定できるか"],
+        ask:["「どこまでは分かって、どこから曖昧？」","「この言葉、自分の言葉で言うと？」"],
+        care:"曖昧な1点を一緒に言語化。理由づけ（WHY）を補う。"},
+      {name:"△ 不安あり", desc:"用語・操作でつまずく",
+        check:["前提の用語が入っているか","操作のどの段階で止まるか","誤解している思い込みがないか"],
+        ask:["「今、何をしようとしてる？」","「画面のどこで止まった？」"],
+        care:"小さく区切って成功体験を。専門用語を日常語に置き換える。"}
+    ],
+    "習熟4段階":[
+      {name:"未着手", desc:"まだ触れていない／手が止まっている",
+        check:["環境・前提が整っているか","最初の一歩が見えているか"],
+        ask:["「いま一番ひっかかってるのはどこ？」","「最初の操作、一緒にやってみる？」"],
+        care:"ゴールと最初の1ステップだけ示す。情報を出しすぎない。"},
+      {name:"初級", desc:"手順書通りなら進める",
+        check:["手順を“なぞる”だけになっていないか","用語の意味を1つずつ確認できるか"],
+        ask:["「この手順は何のためにやってる？」"],
+        care:"1操作ごとに意味づけ。例え（うさうさ式）で概念を補う。"},
+      {name:"中級", desc:"少し外れても自分で戻れる",
+        check:["エラーから自力で原因を探せるか","複数のやり方を比べられるか"],
+        ask:["「なぜそのエラーが出たと思う？」","「他のやり方も思いつく？」"],
+        care:"答えを与えず、問いかけで気づきを促す（伴走）。"},
+      {name:"自立", desc:"調べて解決し、人に説明できる",
+        check:["仮説→検証ができるか","知識を体系として語れるか"],
+        ask:["「この設計の弱点は？」","「他の人に教えるなら？」"],
+        care:"発展課題・レビュー役。学びの共有役を任せる。"}
+    ],
+    "文系・非IT視点":[
+      {name:"未経験", desc:"ITにほぼ触れてこなかった",
+        check:["専門用語への抵抗・誤解がないか","“分からない”を出せているか"],
+        ask:["「今の説明、難しい言葉なかった？」","「普段の言葉で言うと、何がしたい？」"],
+        care:"専門用語を日常の例えに翻訳。否定せず“出せたこと”を承認。"},
+      {name:"少し経験", desc:"PC操作や独学経験は多少ある",
+        check:["我流の思い込みがないか","用語を“なんとなく”で使っていないか"],
+        ask:["「その言葉、どういう意味で使ってる？」"],
+        care:"既知とのズレを丁寧に補正。正しい用語に置き換える。"},
+      {name:"経験あり", desc:"前職や独学で実務経験がある",
+        check:["前提の違い（前職の流儀）がないか","研修ルールとの差を理解しているか"],
+        ask:["「前のやり方とどこが違いそう？」"],
+        care:"経験を尊重しつつ、本研修の前提・ルールを明示してすり合わせ。"}
+    ]
+  };
+
+  const AXIS_NAMES = Object.keys(AXES);
+  let activeAxis = AXIS_NAMES[0];
+  let activeLevel = null; // {axis, index}
+
+  // 軸タブ生成
+  (function(){
+    const tabs = document.getElementById("axisTabs");
+    AXIS_NAMES.forEach(name=>{
+      const el = document.createElement("div");
+      el.className = "axis-tab" + (name===activeAxis?" on":"");
+      el.textContent = name;
+      el.onclick = ()=>{ activeAxis = name;
+        [...tabs.children].forEach(x=>x.classList.toggle("on", x.textContent===name));
+        renderLevels(); };
+      tabs.appendChild(el);
+    });
+  })();
+
+  function renderLevels(){
+    const box = document.getElementById("levels");
+    box.innerHTML = "";
+    AXES[activeAxis].forEach((lv, i)=>{
+      const el = document.createElement("div");
+      el.className = "lv" + (activeLevel && activeLevel.axis===activeAxis && activeLevel.index===i ? " on" : "");
+      el.innerHTML = '<div class="lv-name">'+lv.name+'</div><div class="lv-desc">'+lv.desc+'</div>';
+      el.onclick = ()=>{ activeLevel = {axis:activeAxis, index:i};
+        [...box.children].forEach(x=>x.classList.remove("on")); el.classList.add("on");
+        renderGuide(); };
+      box.appendChild(el);
+    });
+    // 軸を変えたら、その軸で既選択がなければガイドを隠す
+    if(!(activeLevel && activeLevel.axis===activeAxis)) document.getElementById("guide").classList.remove("show");
+    else renderGuide();
+  }
+
+  function renderGuide(){
+    const g = document.getElementById("guide");
+    if(!activeLevel){ g.classList.remove("show"); return; }
+    const lv = AXES[activeLevel.axis][activeLevel.index];
+    g.innerHTML =
+      '<h3>'+activeLevel.axis+'：'+lv.name+'</h3>'+
+      '<div class="g-block"><span class="g-label">🔎 確認の観点</span><ul>'+
+        lv.check.map(x=>'<li>'+x+'</li>').join('')+'</ul></div>'+
+      '<div class="g-block"><span class="g-label">💬 聞き方の例</span><ul>'+
+        lv.ask.map(x=>'<li>'+x+'</li>').join('')+'</ul></div>'+
+      '<div class="g-block"><span class="g-label">🤝 配慮のポイント</span>'+lv.care+'</div>';
+    g.classList.add("show");
+  }
+  renderLevels();
+
+  function v(id){return (document.getElementById(id).value||"").trim();}
+  function line(label, val){return val ? "■ "+label+"\n"+val+"\n\n" : "";}
+
+  // 記録生成（純粋関数）
+  function buildRecord(d){
+    let s = "【認識・理解 記録】\n";
+    s += "教科書：" + (d.unit||"-") + "　／　対象：" + (d.who||"-") + "\n";
+    s += "レベル：" + (d.levelLabel||"（未選択）") + "\n\n";
+    s += line("受講生の言葉そのまま", d.raw ? "「"+d.raw.replace(/^「|」$/g,"")+"」" : "");
+    s += line("事実", d.fact);
+    s += line("所感・見立て（事実と分離）", d.view);
+    s += line("次の一手（仕組み側）", d.next);
+    return s.trim();
+  }
+
+  function collect(){
+    let levelLabel = "";
+    if(activeLevel){
+      const lv = AXES[activeLevel.axis][activeLevel.index];
+      levelLabel = activeLevel.axis + " / " + lv.name;
+    }
+    return {unit:v("unit"), who:v("who"), levelLabel,
+      raw:v("raw"), fact:v("fact"), view:v("view"), next:v("next")};
+  }
+
+  function generate(){ document.getElementById("out").textContent = buildRecord(collect()); }
+
+  function clearAll(){
+    ["unit","who","raw","fact","view","next"].forEach(id=>document.getElementById(id).value="");
+    activeLevel = null; renderLevels();
+    document.getElementById("guide").classList.remove("show");
+    document.getElementById("out").textContent='「🐰 整える」を押すと、ここに記録が出ます。';
+  }
+
+  function copyOut(){
+    const txt = document.getElementById("out").textContent;
+    navigator.clipboard.writeText(txt).then(()=>{
+      const t = document.getElementById("copied"); t.style.display="inline";
+      setTimeout(()=>t.style.display="none", 1600);
+    }).catch(()=>{});
+  }
+
+  /* ===== 自己テスト（起動時自動実行） ===== */
+  (function selfTest(){
+    const R=[]; const A=(n,c)=>R.push({n,ok:!!c});
+
+    // 1) 3軸すべて存在し、各レベルに必須キーがある
+    let axisOK = AXIS_NAMES.length===3;
+    AXIS_NAMES.forEach(ax=>AXES[ax].forEach(lv=>{
+      if(!lv.name||!lv.check||!lv.ask||!lv.care) axisOK=false;
+    }));
+    A("3軸＋各レベルに観点・聞き方・配慮が揃う", axisOK);
+
+    // 2) レベル選択がラベルに反映
+    const d2 = {unit:"P1",who:"受講生A",levelLabel:"習熟4段階 / 中級",raw:"",fact:"",view:"",next:""};
+    A("記録にレベルが含まれる", buildRecord(d2).indexOf("習熟4段階 / 中級")>-1);
+
+    // 3) 言葉そのままが二重括弧にならない
+    const d3 = {unit:"",who:"",levelLabel:"",raw:"「むずかしい」",fact:"",view:"",next:""};
+    A("引用の二重括弧を防ぐ", buildRecord(d3).indexOf("「「")===-1 && buildRecord(d3).indexOf("むずかしい")>-1);
+
+    // 4) 未選択でも落ちない
+    const d4 = {unit:"",who:"",levelLabel:"",raw:"",fact:"事実のみ",view:"",next:""};
+    A("未選択でも記録生成できる", buildRecord(d4).indexOf("（未選択）")>-1);
+
+    // 5) 空所感・空次手は出力に出ない
+    const d5 = {unit:"P2",who:"受講生B",levelLabel:"理解度3段階 / ◎ 良好",raw:"",fact:"説明できた",view:"",next:""};
+    const r5 = buildRecord(d5);
+    A("空欄項目は出力されない", r5.indexOf("所感・見立て")===-1 && r5.indexOf("説明できた")>-1);
+
+    const pass=R.filter(x=>x.ok).length, all=R.length;
+    const el=document.getElementById("selftest");
+    el.textContent="🐰 セルフテスト "+pass+"/"+all+(pass===all?" 全て通過":" ⚠ 要確認");
+    el.style.color=(pass===all)?"var(--green)":"var(--accent-deep)";
+    if(pass!==all) console.warn("self-test failures:", R.filter(x=>!x.ok));
+  })();
+</script>
+</body>
+</html>
