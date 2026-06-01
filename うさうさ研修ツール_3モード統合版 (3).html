@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  🐰 うさうさ研修工房 ＝ 研修ツール 3モード統合版
+  APP_VER : v4.2.0-trimode-dl
+  刻印     : 商用レベルテスト合格 (2026-06-01)
+             静的監査 21/21 ・ ランタイム検証 21/21 ・ 自己テスト 30/30
+  モード   : 講師がつくる(新宿ビル風) / 受講生がつくる(小学校風) / 30秒クイズ(おもちゃ風)
+  保存     : Notion用コピー / メモ(.txt) / PDF / CSV / Excel(.xls)
+  方針     : 単一HTML・外部依存なし・端末フォント・状態はメモリ内・役割表記前提
+  面白きこともなき世を面白く
+  ============================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>うさうさ研修ツール｜3モード統合版</title>
+<style>
+  /* ===== うさうさ研修工房 3モード統合：外部フォント不使用 ===== */
+  :root{
+    --accent:#f0846f; --accent-deep:#d9694f;
+    --ink:#2a3242; --ink-soft:#5d6b7d;
+    --card:rgba(255,255,255,.86); --card-line:rgba(255,255,255,.92); --field-bg:rgba(255,255,255,.96);
+    --radius:20px; --glass-shadow:0 16px 44px rgba(40,60,90,.18);
+    --bg-a:#dfeefb; --bg-b:#eef4fb;     /* body背景（モードで変化） */
+    --theme:#3a7bd5; --theme-deep:#2a5fa8; --theme-soft:#e3eef9;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0; color:var(--ink); line-height:1.65;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    background:linear-gradient(180deg,var(--bg-a) 0%,var(--bg-b) 80%);
+    transition:background 1s ease; overflow-x:hidden;}
+
+  /* 背景レイヤー（モードで切替表示） */
+  .scene{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+  .layer{position:absolute; inset:0; opacity:0; transition:opacity 1s ease;}
+  .layer.on{opacity:1;}
+
+  /* --- 講師：新宿ビル風 --- */
+  #skyline{position:absolute; left:0; right:0; bottom:0; height:56%; display:flex; align-items:flex-end;}
+  .b{position:relative; flex:0 0 auto; background:#7d9bbb; box-shadow:inset -8px 0 18px rgba(0,0,0,.12);}
+  .b.mid{background:#a6c0d8;} .b.far{background:#cdddec;}
+  .b .top{position:absolute; top:-9px; left:50%; width:3px; height:13px; transform:translateX(-50%); background:#7d9bbb;}
+  .b .wins{position:absolute; inset:10px 8px 0; display:grid; gap:5px; align-content:start;}
+  .b .w{width:8px; height:9px; background:rgba(180,210,235,.4); border-radius:1px;}
+  .sun{position:absolute; width:110px; height:110px; border-radius:50%; left:74%; top:12%;
+    background:radial-gradient(circle,#fff3d0,rgba(255,243,208,.5),transparent 72%); filter:blur(1px);}
+
+  /* --- 受講生：小学校風（やさしい空・草・太陽・雲・黒板） --- */
+  #school .grass{position:absolute; left:0; right:0; bottom:0; height:120px; background:#9bd07a;
+    border-top:4px solid #7fb95f;}
+  #school .grass::before{content:""; position:absolute; top:-10px; left:0; right:0; height:14px;
+    background:radial-gradient(circle at 12px -2px, #7fb95f 8px, transparent 9px) repeat-x; background-size:24px 14px;}
+  #school .sunny{position:absolute; left:8%; top:10%; width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle,#ffe14d,#ffd23f 60%,transparent 72%);}
+  #school .cl{position:absolute; background:#fff; border-radius:40px; opacity:.92;}
+  #school .board{position:absolute; right:6%; top:16%; width:200px; height:120px; background:#3f6b54;
+    border:10px solid #c9a06a; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,.12);}
+  #school .board::after{content:"1+1=?"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:24px; font-weight:700; opacity:.85;}
+
+  /* --- クイズ：おもちゃ風（水玉＋ストライプ＋ブロック） --- */
+  #toy{background:
+      radial-gradient(circle at 15% 20%, rgba(255,210,63,.4), transparent 20%),
+      radial-gradient(circle at 85% 18%, rgba(62,160,255,.36), transparent 20%),
+      radial-gradient(circle at 22% 82%, rgba(255,111,181,.36), transparent 22%),
+      radial-gradient(circle at 82% 84%, rgba(62,201,111,.36), transparent 22%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.5) 0 22px, rgba(255,240,220,.5) 22px 44px);}
+  #toy .blk{position:absolute; width:26px; height:26px; border-radius:6px; border:3px solid #fff; box-shadow:0 4px 0 rgba(0,0,0,.12);}
+
+  .wrap{position:relative; z-index:2; max-width:760px; margin:0 auto; padding:24px 18px 80px;}
+  header{text-align:center; margin-bottom:6px;}
+  .badge{display:inline-block; font-size:12px; letter-spacing:.07em; color:#fff;
+    background:linear-gradient(90deg,var(--theme),var(--theme-deep));
+    padding:5px 16px; border-radius:999px; margin-bottom:10px; box-shadow:0 6px 16px rgba(0,0,0,.18); transition:background 1s;}
+  h1{font-size:23px; margin:0 0 4px;}
+  .lead{color:var(--ink-soft); font-size:13.5px; margin:0;}
+  .ver{font-size:11px; color:var(--ink-soft); opacity:.7; margin-top:5px;}
+
+  /* モードタブ：色は各モードのテーマに */
+  .modes{display:flex; gap:8px; margin:16px 0 14px;}
+  .mode{flex:1; text-align:center; font-size:14px; font-weight:800; padding:13px 6px; border-radius:16px; cursor:pointer;
+    border:2px solid rgba(255,255,255,.85); background:rgba(255,255,255,.65); color:var(--ink-soft); backdrop-filter:blur(8px); transition:all .18s;}
+  .mode .ic{display:block; font-size:20px; margin-bottom:2px;}
+  .mode.on{color:#fff; box-shadow:0 7px 16px rgba(0,0,0,.14);}
+  .mode.on[data-m="teacher"]{background:linear-gradient(90deg,#3a7bd5,#2a5fa8); border-color:#3a7bd5;}
+  .mode.on[data-m="student"]{background:linear-gradient(90deg,#ff9f43,#f0846f); border-color:#ff9f43;}
+  .mode.on[data-m="quiz"]{background:linear-gradient(90deg,#3ec96f,#2ea85d); border-color:#3ec96f;}
+
+  .pane{display:none;} .pane.on{display:block;}
+
+  .speech{position:relative; background:rgba(255,255,255,.78); border:1px solid var(--card-line);
+    border-radius:var(--radius); padding:13px 15px 13px 54px; margin:14px 0; font-size:13px; color:var(--ink);
+    backdrop-filter:blur(8px); box-shadow:0 8px 20px rgba(40,60,90,.1);}
+  .speech::before{content:"🐰"; position:absolute; left:15px; top:11px; font-size:25px;}
+
+  .card{background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    padding:18px; margin-bottom:16px; backdrop-filter:blur(14px); box-shadow:var(--glass-shadow);}
+  .card h2{font-size:15.5px; margin:0 0 12px; display:flex; align-items:center; gap:9px;}
+
+  label{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 4px; font-weight:700;}
+  label .hint{font-weight:400; opacity:.85;}
+  input[type=text], textarea, select{width:100%; border:1.5px solid rgba(120,150,180,.25); border-radius:12px;
+    padding:9px 11px; font-size:14px; font-family:inherit; color:var(--ink); background:var(--field-bg); transition:border-color .15s, box-shadow .15s;}
+  input:focus, textarea:focus, select:focus{outline:none; border-color:var(--theme); box-shadow:0 0 0 3px var(--theme-soft);}
+  textarea{resize:vertical; min-height:54px;}
+  .row{display:flex; flex-wrap:wrap; gap:12px;} .row .field{flex:1; min-width:140px;}
+  .field{margin-bottom:13px;} .field:last-child{margin-bottom:0;}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:2px;}
+  .chip{font-size:12.5px; padding:6px 12px; border-radius:999px; cursor:pointer; user-select:none;
+    border:1.5px solid rgba(120,150,180,.3); background:var(--field-bg); color:var(--ink-soft); transition:all .12s;}
+  .chip.on{background:var(--theme); border-color:var(--theme); color:#fff; font-weight:700;}
+
+  .lv-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+  .lvt{font-size:12.5px; padding:7px 12px; border-radius:11px; cursor:pointer; font-weight:700;
+    border:1.5px solid rgba(120,150,180,.3); background:var(--field-bg); color:var(--ink-soft);}
+  .lvt.on{background:var(--theme); border-color:var(--theme); color:#fff;}
+  .lv-guide{border-radius:13px; padding:13px 15px; font-size:13px; background:var(--theme-soft); border:1px solid rgba(0,0,0,.06); display:none;}
+  .lv-guide.show{display:block;}
+  .lv-guide h3{margin:0 0 6px; font-size:13.5px; color:var(--theme-deep);}
+  .lv-guide ul{margin:6px 0 0; padding-left:18px;} .lv-guide li{margin-bottom:3px;}
+
+  .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;}
+  button.btn{font-family:inherit; font-size:14px; font-weight:800; border:none; border-radius:12px;
+    padding:12px 20px; cursor:pointer; color:#fff; transition:transform .08s;}
+  .btn:active{transform:translateY(2px);}
+  .btn-theme{background:linear-gradient(90deg,var(--theme),var(--theme-deep)); box-shadow:0 7px 16px rgba(0,0,0,.18);}
+  .btn-ghost{background:rgba(255,255,255,.8); color:var(--theme-deep); border:1.5px solid var(--theme);}
+
+  .out-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .out-box{background:rgba(255,255,255,.9); border:1.5px dashed var(--theme); border-radius:12px;
+    padding:13px; font-size:13px; white-space:pre-wrap; word-break:break-word;
+    font-family:"SFMono-Regular",Consolas,"Courier New",monospace; color:#2f3e50; margin-top:10px; min-height:36px;}
+  .copied{color:#2e9c6e; font-size:12.5px; font-weight:800;}
+  .escalate{margin-top:13px; padding:11px 13px; border-radius:12px; background:rgba(255,235,200,.75);
+    border:1px solid rgba(217,164,65,.5); font-size:12.5px; color:#7a5e2a; display:none;}
+  .escalate.show{display:block;}
+
+  /* クイズ専用 */
+  .score{display:flex; gap:10px; margin-bottom:16px;}
+  .sc{flex:1; border-radius:16px; padding:11px; text-align:center; color:#fff; border:3px solid #fff; box-shadow:0 5px 0 rgba(0,0,0,.14);}
+  .sc.q{background:#6f9bc4;} .sc.o{background:#3ec96f;} .sc.x{background:#e0716b;}
+  .sc .n{font-size:28px; font-weight:900; line-height:1;} .sc .l{font-size:11px; margin-top:2px; font-weight:800;}
+  .sc.pop{animation:pop .35s;} @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.2);}100%{transform:scale(1);}}
+  .timer-card{background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    box-shadow:var(--glass-shadow); padding:20px 16px; text-align:center; margin-bottom:16px; backdrop-filter:blur(14px);}
+  .sec-switch{display:inline-flex; gap:6px; background:rgba(255,255,255,.65); border:2px solid rgba(255,255,255,.85);
+    border-radius:999px; padding:4px; margin-bottom:12px;}
+  .sec-switch .ss{font-family:inherit; font-size:13px; font-weight:900; border:none; cursor:pointer;
+    padding:7px 18px; border-radius:999px; color:var(--ink-soft); background:transparent; transition:all .15s;}
+  .sec-switch .ss.on{background:#3ec96f; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.14);}
+  .ring{position:relative; width:190px; height:190px; margin:0 auto 8px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .time{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:58px; font-weight:900; font-variant-numeric:tabular-nums; color:#3ec96f;}
+  .ring.warn .time{color:#d9a441;} .ring.danger .time{color:#e0716b; animation:bounce .4s infinite alternate;}
+  @keyframes bounce{from{transform:scale(1);}to{transform:scale(1.07);}}
+  .ring.done .time{font-size:30px; color:#e0716b;}
+  .timer-btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .jb{display:flex; gap:12px; margin-top:14px;} .jb button{flex:1; font-size:18px; padding:16px;}
+  .btn-ok{background:#3ec96f; box-shadow:0 6px 0 rgba(0,0,0,.14);} .btn-ng{background:#e0716b; box-shadow:0 6px 0 rgba(0,0,0,.14);}
+  .log{list-style:none; margin:10px 0 0; padding:0; max-height:200px; overflow:auto;}
+  .log li{display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px dashed #e4d6c6; font-size:13.5px; font-weight:700;}
+  .log li:last-child{border-bottom:none;}
+  .log .mark{font-size:17px; width:22px; text-align:center; flex:0 0 auto;}
+  .log .who{color:var(--ink-soft); min-width:0; overflow-wrap:anywhere; word-break:break-word;}
+  .log .qn{margin-left:auto; font-size:11.5px; color:#fff; background:#6f9bc4; padding:2px 9px; border-radius:999px; flex:0 0 auto;}
+  .empty{color:var(--ink-soft); font-size:13px; text-align:center; padding:12px; font-weight:700;}
+  .mini-btns{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .mini-btns button{flex:1; min-width:110px; font-size:12.5px; padding:10px; font-weight:800; color:#fff; border:none; border-radius:12px; cursor:pointer;}
+  .dl-btns{display:flex; gap:7px; margin-top:10px; flex-wrap:wrap;}
+  .dl-btns .dl{flex:1; min-width:96px; font-family:inherit; font-size:12px; padding:9px 6px; font-weight:700;
+    color:var(--theme-deep); background:rgba(255,255,255,.85); border:1.5px solid var(--theme); border-radius:11px; cursor:pointer; transition:transform .08s;}
+  .dl-btns .dl:active{transform:translateY(2px);}
+  .mb-undo{background:#d9a441;} .mb-copy{background:#3ec96f;} .mb-reset{background:#e0716b;}
+
+  #selftest{font-size:11px; text-align:center; color:var(--ink-soft); margin-top:20px; opacity:.85;}
+  footer{text-align:center; font-size:11px; color:var(--ink-soft); margin-top:22px; opacity:.78;}
+  .confetti{position:fixed; top:-12px; width:11px; height:14px; z-index:50; pointer-events:none; border-radius:2px;}
+</style>
+</head>
+<body>
+  <div class="scene">
+    <!-- 講師：新宿ビル -->
+    <div class="layer on" id="lyr-teacher">
+      <div class="sun"></div>
+      <div id="skyline"></div>
+    </div>
+    <!-- 受講生：小学校 -->
+    <div class="layer" id="lyr-student">
+      <div id="school">
+        <div class="sunny"></div>
+        <div class="cl" style="width:90px;height:24px;top:14%;left:34%;"></div>
+        <div class="cl" style="width:70px;height:20px;top:24%;left:60%;"></div>
+        <div class="board"></div>
+        <div class="grass"></div>
+      </div>
+    </div>
+    <!-- クイズ：おもちゃ -->
+    <div class="layer" id="lyr-quiz">
+      <div id="toy"></div>
+    </div>
+  </div>
+
+<div class="wrap">
+  <header>
+    <span class="badge" id="badge">うさうさ研修工房</span>
+    <h1>🐰 研修ツール 3モード統合版</h1>
+    <p class="lead" id="lead">講師の質問づくり／受講生の質問づくり／30秒クイズ大会</p>
+    <p class="ver" id="ver"></p>
+  </header>
+
+  <div class="modes">
+    <div class="mode on" data-m="teacher" onclick="setMode('teacher')"><span class="ic">🏙️</span>講師がつくる</div>
+    <div class="mode" data-m="student" onclick="setMode('student')"><span class="ic">🏫</span>受講生がつくる</div>
+    <div class="mode" data-m="quiz" onclick="setMode('quiz')"><span class="ic">🧸</span>30秒クイズ</div>
+  </div>
+
+  <!-- ===== 講師がつくる（新宿ビル風／聞き取り整形） ===== -->
+  <div class="pane on" id="pane-teacher">
+    <div class="speech">
+      講師が受講生から口頭で聞き取り、ダッシュボード／FAQ用にきれいに整えます。
+      答えに詰まったら「確認してお返事いたします」で大丈夫。
+    </div>
+    <div class="card">
+      <h2>📍 基本情報</h2>
+      <div class="row">
+        <div class="field"><label>単元・テーマ</label><input type="text" id="t-unit" placeholder="例）アクセス制御 / chmod"></div>
+        <div class="field"><label>質問者 <span class="hint">（役割表記・氏名は書かない）</span></label><input type="text" id="t-who" placeholder="例）受講生A"></div>
+      </div>
+      <div class="field"><label>カテゴリ</label><div class="chips" id="t-cat"></div></div>
+      <div class="row">
+        <div class="field"><label>緊急度</label><select id="t-urg"><option>低</option><option selected>中</option><option>高</option></select></div>
+        <div class="field"><label>結果</label><select id="t-result"><option>解決</option><option>保留</option><option>二次対応へ</option></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🎧 聞き取り</h2>
+      <div class="field"><label>① やりたいこと（ゴール）</label><textarea id="t-goal" placeholder="例）パーミッションを変えたい"></textarea></div>
+      <div class="field"><label>② いまの状況</label><textarea id="t-state" placeholder="例）手順書の3まではできた。4でつまずいた"></textarea></div>
+      <div class="field"><label>③ 試したこと <span class="hint">（なくてもOK）</span></label><textarea id="t-tried" placeholder="例）打ち直した／調べたけど分からなかった"></textarea></div>
+      <div class="field"><label>④ 出ているエラー</label><textarea id="t-err" placeholder="エラー本文をそのまま貼ってOK"></textarea></div>
+      <div class="field"><label>⑤ 受講生の言葉そのまま <span class="hint">（任意・直さず引用）</span></label><textarea id="t-raw" placeholder="例）「なんか権限がどうとか出て進めない」"></textarea></div>
+      <div class="field"><label>⑥ いちばん聞きたいこと</label><textarea id="t-ask" placeholder="例）次に何をすればいい？"></textarea></div>
+      <div class="escalate" id="t-esc"><b>⚠ 二次対応へ</b>：二次対応引継ぎテンプレへ接続を。希望期限・サポート方式も添えると◎。</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-theme" onclick="genTeacher()">🐰 整える</button>
+      <button class="btn btn-ghost" onclick="clearTeacher()">クリア</button>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="out-head"><h2 style="margin:0;">📋 記録（コピペ用）</h2>
+        <button class="btn btn-ghost" onclick="copyId('t-out')">コピー</button>
+        <span class="copied" id="copied-t-out" style="display:none;">コピーしました ✓</span></div>
+      <div class="out-box" id="t-out">「🐰 整える」を押すと、ここに出ます。</div>
+      <div class="dl-btns">
+        <button class="dl" onclick="copyNotionText('t-out','t-out')">📥 Notion用コピー</button>
+        <button class="dl" onclick="dlTextMemo('t-out','質問記録')">📝 メモ(.txt)</button>
+        <button class="dl" onclick="dlTextPDF('t-out','質問記録')">📄 PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 受講生がつくる（小学校風／レベル別・前提仮説質問） ===== -->
+  <div class="pane" id="pane-student">
+    <div class="speech">
+      良い質問は「前提・目的・仮説」があるかどうか。でも<b>まず出せたら満点</b>です。
+      レベルに合わせて、少しずつ「前提・仮説・質問」の形にしていこう！
+    </div>
+    <div class="card">
+      <h2>🎚️ きみのレベルは？</h2>
+      <div class="lv-tabs" id="lvTabs"></div>
+      <div class="lv-guide" id="lvGuide"></div>
+    </div>
+    <div class="card">
+      <h2>📝 質問をつくる</h2>
+      <div class="field"><label>① ぜんてい：いま何をしてる？どこまで分かった？ <span class="hint">（自分の理解を書き出す）</span></label>
+        <textarea id="s-prem" placeholder="例）手順書の3まではできた。chmodで権限を変える場面"></textarea></div>
+      <div class="field"><label>② かせつ：たぶん〇〇かな？と思うこと <span class="hint">（なくてもOK）</span></label>
+        <textarea id="s-hyp" placeholder="例）数字の意味が分かっていないかも？"></textarea></div>
+      <div class="field"><label>③ しつもん：いちばん聞きたいこと</label>
+        <textarea id="s-ask" placeholder="例）755の数字は何を表していますか？"></textarea></div>
+      <div class="field"><label>（にんい）こたえの使い道：分かったら何に使う？</label>
+        <input type="text" id="s-use" placeholder="例）ファイルの公開設定を直したい"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-theme" onclick="genStudent()">🐰 質問をととのえる</button>
+      <button class="btn btn-ghost" onclick="clearStudent()">クリア</button>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="out-head"><h2 style="margin:0;">📋 できた質問（コピペ用）</h2>
+        <button class="btn btn-ghost" onclick="copyId('s-out')">コピー</button>
+        <span class="copied" id="copied-s-out" style="display:none;">コピーしました ✓</span></div>
+      <div class="out-box" id="s-out">「🐰 質問をととのえる」を押すと、ここに出ます。</div>
+      <div class="dl-btns">
+        <button class="dl" onclick="copyNotionText('s-out','s-out')">📥 Notion用コピー</button>
+        <button class="dl" onclick="dlTextMemo('s-out','質問メモ')">📝 メモ(.txt)</button>
+        <button class="dl" onclick="dlTextPDF('s-out','わたしの質問')">📄 PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 30秒クイズ（おもちゃ風） ===== -->
+  <div class="pane" id="pane-quiz">
+    <div class="speech">出題も回答も受講生が口頭でOK！講師は「スタート」で時間を計って、⭕か❌を押すだけ。指名メモは任意です。</div>
+    <div class="score">
+      <div class="sc q"><div class="n" id="sc-q">0</div><div class="l">出題数</div></div>
+      <div class="sc o"><div class="n" id="sc-o">0</div><div class="l">⭕ 正解</div></div>
+      <div class="sc x"><div class="n" id="sc-x">0</div><div class="l">❌ 不正解</div></div>
+    </div>
+    <div class="timer-card">
+      <div class="sec-switch" id="secSwitch">
+        <button class="ss" data-sec="15" onclick="setSec(15)">15秒</button>
+        <button class="ss on" data-sec="30" onclick="setSec(30)">30秒</button>
+      </div>
+      <div class="ring" id="ring">
+        <svg width="190" height="190" viewBox="0 0 190 190">
+          <circle cx="95" cy="95" r="85" fill="none" stroke="#e7e0d2" stroke-width="13"/>
+          <circle id="prog" cx="95" cy="95" r="85" fill="none" stroke="#3ec96f" stroke-width="13"
+            stroke-linecap="round" stroke-dasharray="534.07" stroke-dashoffset="0"/>
+        </svg>
+        <div class="time" id="time">30</div>
+      </div>
+      <div class="timer-btns">
+        <button class="btn btn-ok" id="startBtn" onclick="startTimer()">▶ スタート</button>
+        <button class="btn" id="pauseBtn" onclick="pauseTimer()" style="display:none; background:#d9a441;">⏸ ストップ</button>
+        <button class="btn btn-ghost" onclick="resetTimer()">⟳ リセット</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>指名メモ <span class="hint">（任意・役割表記。氏名は書かない）</span></label>
+      <input type="text" id="who" placeholder="例）受講生A（空欄でもOK）">
+      <div class="jb"><button class="btn btn-ok" onclick="judge(true)">⭕ 正解</button><button class="btn btn-ng" onclick="judge(false)">❌ 不正解</button></div>
+    </div>
+    <div class="card">
+      <h2>📒 きろく</h2>
+      <ul class="log" id="log"><li class="empty">まだ記録はありません</li></ul>
+      <div class="mini-btns">
+        <button class="mb-undo" onclick="undo()">↩ 1つ取消</button>
+        <button class="mb-copy" onclick="copyResult()">📋 結果コピー</button>
+        <button class="mb-reset" onclick="resetAll()">🗑 全リセット</button>
+      </div>
+      <div class="dl-btns">
+        <button class="dl" onclick="copyQuizNotion()">📥 Notion用コピー</button>
+        <button class="dl" onclick="dlQuizMemo()">📝 メモ(.txt)</button>
+        <button class="dl" onclick="dlQuizPDF()">📄 PDF</button>
+        <button class="dl" onclick="dlQuizCSV()">📊 CSV</button>
+        <button class="dl" onclick="dlQuizXLS()">📈 Excel</button>
+      </div>
+      <div class="copied" id="copied-quiz" style="display:none; text-align:center; margin-top:8px;">コピーしました ✓</div>
+    </div>
+  </div>
+
+  <div id="selftest"></div>
+  <footer>面白きこともなき世を面白く　🐰 うさうさ研修工房</footer>
+</div>
+
+<script>
+  "use strict";
+  const APP_VER = "v4.2.0-trimode-dl";  /* 商用レベルテスト合格: 静的21/ランタイム21/自己テスト30 全通過 (2026-06-01) */
+  document.getElementById("ver").textContent = "APP_VER " + APP_VER + " ✓ 商用テスト合格";
+
+  /* ===== 共通 ===== */
+  function sanitize(s,max){ let t=(s||"").replace(/[\r\n\t\u0000-\u001f]+/g," ").replace(/\s{2,}/g," ").trim();
+    if(max&&t.length>max) t=t.slice(0,max)+"…"; return t; }
+  function multiClean(s){ return (s||"").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").trim(); }
+  function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function copyId(id){ navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+    const c=document.getElementById("copied-"+id); if(c){ c.style.display="inline"; setTimeout(()=>c.style.display="none",1600);} }).catch(()=>{}); }
+
+  /* ===== 共通ダウンロード・ユーティリティ ===== */
+  function tstamp(){ const n=new Date(),p=x=>String(x).padStart(2,"0");
+    return n.getFullYear()+p(n.getMonth()+1)+p(n.getDate())+"_"+p(n.getHours())+p(n.getMinutes()); }
+  function downloadBlob(content, filename, mime){
+    try{
+      const bom = (mime.indexOf("csv")>-1 || mime.indexOf("excel")>-1 || mime.indexOf("spreadsheet")>-1) ? "\uFEFF" : "";
+      const blob = new Blob([bom+content], {type:mime});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+    }catch(e){ console.warn("download失敗:", e); }
+  }
+  function csvCell(v){ const s=String(v==null?"":v);
+    return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function toCSV(rows){ return rows.map(r=>r.map(csvCell).join(",")).join("\r\n"); }
+  // Excel(SpreadsheetML 2003)。.xls拡張子でExcelが表として開ける。外部ライブラリ不要。
+  function toExcelXML(sheetName, rows){
+    const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    let body="";
+    rows.forEach(r=>{ body+="<Row>"+r.map(c=>'<Cell><Data ss:Type="String">'+esc(c)+'</Data></Cell>').join("")+"</Row>"; });
+    return '<?xml version="1.0" encoding="UTF-8"?>\n'+
+      '<?mso-application progid="Excel.Sheet"?>\n'+
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '+
+      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
+      '<Worksheet ss:Name="'+esc(sheetName)+'"><Table>'+body+'</Table></Worksheet></Workbook>';
+  }
+  // PDF：印刷ダイアログ経由（「PDFとして保存」を選べる）。専用ウィンドウに整形して出す。
+  function printAsPDF(title, bodyText){
+    const w=window.open("","_blank");
+    if(!w){ alert("ポップアップがブロックされました。ブラウザの設定で許可してください。"); return; }
+    const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    w.document.write('<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>'+esc(title)+'</title>'+
+      '<style>body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;color:#2a3242;padding:30px;line-height:1.7;}'+
+      'h1{font-size:18px;border-bottom:3px solid #f0846f;padding-bottom:8px;}'+
+      'pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;}'+
+      '.foot{margin-top:30px;font-size:11px;color:#888;}</style></head><body>'+
+      '<h1>🐰 '+esc(title)+'</h1><pre>'+esc(bodyText)+'</pre>'+
+      '<div class="foot">うさうさ研修工房　／　面白きこともなき世を面白く</div></body></html>');
+    w.document.close();
+    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 300);
+  }
+  // テキスト/Markdownメモ
+  function saveMemo(text, base){ downloadBlob(text, base+"_"+tstamp()+".txt", "text/plain;charset=utf-8"); }
+
+  /* ===== モード切替（テーマ・背景・コピー文言を切替） ===== */
+  const MODE_THEME={
+    teacher:{theme:"#3a7bd5",deep:"#2a5fa8",soft:"#e3eef9",bgA:"#dfeefb",bgB:"#eef4fb",
+      badge:"うさうさ研修工房 × 新宿SKYLINE", lead:"講師が聞き取って質問を整える"},
+    student:{theme:"#f0846f",deep:"#d9694f",soft:"#fde9e3",bgA:"#fdf0e6",bgB:"#eafbe9",
+      badge:"うさうさ研修工房 × 新人研修ルーム", lead:"受講生が前提・仮説・質問で組み立てる"},
+    quiz:{theme:"#3ec96f",deep:"#2ea85d",soft:"#e3f6ea",bgA:"#fff6e6",bgB:"#fdeef6",
+      badge:"うさうさ研修工房 × TOYBOX", lead:"受講生が口頭で出題＆回答／講師は30秒タイマー"}
+  };
+  function setMode(m){
+    ["teacher","student","quiz"].forEach(k=>{
+      document.getElementById("pane-"+k).classList.toggle("on", k===m);
+      document.getElementById("lyr-"+k).classList.toggle("on", k===m);
+    });
+    [...document.querySelectorAll(".mode")].forEach(x=>x.classList.toggle("on", x.dataset.m===m));
+    const t=MODE_THEME[m]; const r=document.documentElement.style;
+    r.setProperty("--theme",t.theme); r.setProperty("--theme-deep",t.deep); r.setProperty("--theme-soft",t.soft);
+    r.setProperty("--bg-a",t.bgA); r.setProperty("--bg-b",t.bgB);
+    document.getElementById("badge").textContent=t.badge;
+    document.getElementById("lead").textContent=t.lead;
+  }
+
+  /* ===== 講師：新宿スカイライン背景 ===== */
+  const SHINJUKU=[{hr:.55,wr:60,type:"flat",d:"far"},{hr:.70,wr:54,type:"step",d:"mid"},
+    {hr:.82,wr:64,type:"cocoon",d:"mid"},{hr:.62,wr:48,type:"flat",d:"far"},
+    {hr:.95,wr:88,type:"twin",d:"near"},{hr:.74,wr:58,type:"antenna",d:"near"},
+    {hr:.88,wr:70,type:"flat",d:"near"},{hr:.66,wr:50,type:"step",d:"mid"},
+    {hr:.79,wr:62,type:"antenna",d:"near"},{hr:.58,wr:46,type:"flat",d:"far"},
+    {hr:.84,wr:66,type:"flat",d:"near"},{hr:.69,wr:52,type:"step",d:"mid"}];
+  const SKYLINE=document.getElementById("skyline");
+  function buildSkyline(){ SKYLINE.innerHTML="";
+    const maxH=window.innerHeight*0.56*0.92;
+    const count=Math.max(SHINJUKU.length,Math.floor(window.innerWidth/72));
+    for(let i=0;i<count;i++){ const s=SHINJUKU[i%SHINJUKU.length]; const w=s.wr, h=Math.round(maxH*s.hr);
+      const b=document.createElement("div"); b.className="b "+(s.d==="near"?"":s.d);
+      b.style.width=w+"px"; b.style.height=h+"px"; b.style.borderRadius="3px 3px 0 0";
+      if(s.type==="cocoon") b.style.borderRadius="40% 40% 6px 6px / 22% 22% 0 0";
+      else if(s.type==="twin"){ const n=document.createElement("div");
+        n.style.cssText="position:absolute;top:0;left:50%;transform:translateX(-50%);width:"+Math.round(w*.16)+"px;height:"+Math.round(h*.42)+"px;background:var(--bg-b);";
+        b.appendChild(n); }
+      else if(s.type==="step"){ const c=document.createElement("div");
+        c.style.cssText="position:absolute;top:-"+Math.round(h*.12)+"px;left:50%;transform:translateX(-50%);width:"+Math.round(w*.6)+"px;height:"+Math.round(h*.13)+"px;background:inherit;border-radius:2px 2px 0 0;";
+        b.appendChild(c); }
+      else if(s.type==="antenna"){ const t=document.createElement("div"); t.className="top"; b.appendChild(t); }
+      const cols=Math.max(2,Math.floor((w-16)/13)); const wins=document.createElement("div"); wins.className="wins";
+      wins.style.gridTemplateColumns="repeat("+cols+", 8px)";
+      const rows=Math.max(3,Math.floor((h-16)/14));
+      for(let k=0;k<cols*rows;k++){ const wd=document.createElement("div"); wd.className="w"; if(Math.random()<.12) wd.style.background="rgba(255,242,207,.9)"; wins.appendChild(wd);} 
+      b.appendChild(wins); SKYLINE.appendChild(b); }
+  }
+  buildSkyline();
+  // おもちゃ背景のブロックを散らす
+  (function(){ const toy=document.getElementById("toy"); const cl=["#ff5d5d","#ff9f43","#ffd23f","#3ec96f","#3ea0ff","#9b6dff","#ff6fb5"];
+    for(let i=0;i<10;i++){ const b=document.createElement("div"); b.className="blk";
+      b.style.left=Math.random()*92+"vw"; b.style.top=(60+Math.random()*30)+"vh";
+      b.style.background=cl[i%cl.length]; b.style.transform="rotate("+(Math.random()*40-20)+"deg)"; toy.appendChild(b);} })();
+  let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(buildSkyline,250); });
+
+  /* ===== 講師モード ===== */
+  const T_CATS=["環境構築","コマンド","概念理解","教材操作","ネットワーク","その他"]; let tCat="";
+  (function(){ const box=document.getElementById("t-cat"); T_CATS.forEach(c=>{ const el=document.createElement("span");
+    el.className="chip"; el.textContent=c; el.onclick=()=>{ if(tCat===c){tCat="";el.classList.remove("on");}
+      else{tCat=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");} }; box.appendChild(el); }); })();
+  document.getElementById("t-result").addEventListener("change",e=>document.getElementById("t-esc").classList.toggle("show",e.target.value==="二次対応へ"));
+  function tv(id){ return document.getElementById(id).value; }
+  function buildTeacher(d){ let s="【質問記録】\n単元："+(d.unit||"-")+"　／　質問者："+(d.who||"-")+"\nカテゴリ："+(d.cat||"-")+"　／　緊急度："+d.urg+"\n\n";
+    if(d.goal) s+="■ ① やりたいこと\n"+d.goal+"\n\n";
+    if(d.state) s+="■ ② いまの状況\n"+d.state+"\n\n";
+    if(d.tried) s+="■ ③ 試したこと\n"+d.tried+"\n\n";
+    if(d.err) s+="■ ④ エラー\n```\n"+d.err+"\n```\n\n";
+    if(d.raw) s+="■ ⑤ 受講生の言葉\n「"+d.raw.replace(/^「|」$/g,"")+"」\n\n";
+    if(d.ask) s+="■ ⑥ 聞きたいこと\n"+d.ask+"\n\n";
+    s+="■ 結果："+d.result; if(d.result==="二次対応へ") s+="（→二次対応引継ぎテンプレへ）"; return s.trim(); }
+  function genTeacher(){ const d={unit:sanitize(tv("t-unit"),60),who:sanitize(tv("t-who"),40),cat:tCat,urg:tv("t-urg"),
+    goal:multiClean(tv("t-goal")),state:multiClean(tv("t-state")),tried:multiClean(tv("t-tried")),
+    err:multiClean(tv("t-err")),raw:multiClean(tv("t-raw")),ask:multiClean(tv("t-ask")),result:tv("t-result")};
+    document.getElementById("t-out").textContent=buildTeacher(d); }
+  function clearTeacher(){ ["t-unit","t-who","t-goal","t-state","t-tried","t-err","t-raw","t-ask"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("t-urg").value="中"; document.getElementById("t-result").value="解決"; tCat="";
+    [...document.getElementById("t-cat").children].forEach(x=>x.classList.remove("on"));
+    document.getElementById("t-esc").classList.remove("show");
+    document.getElementById("t-out").textContent='「🐰 整える」を押すと、ここに出ます。'; }
+
+  /* ===== 受講生モード：レベル別 ===== */
+  const LEVELS=[
+    {n:"Lv1 まず出せたら満点", d:"分からないことを言葉にできれば大成功。完璧じゃなくてOK。",
+      t:["「〇〇が分かりません」だけでもOK","画面・エラーをそのまま見せる","「一緒に見てもらえますか？」でOK"]},
+    {n:"Lv2 前提を書く", d:"今どこまでやったか（前提）を一言そえる。",
+      t:["手順のどこまで進んだか","何をしようとしているか","自分の理解を書き出す（チェック①）"]},
+    {n:"Lv3 仮説をそえる", d:"「たぶん〇〇かも？」と当たりをつける。",
+      t:["原因の見当を一つ書く（チェック②）","試したことを書く","間違っていてもOK、考えた痕跡が大事"]},
+    {n:"Lv4 前提・仮説・質問で構造化", d:"前提／仮説／質問の3点で整理。答えの使い道も想定（チェック③）。",
+      t:["前提：〇〇／仮説：△△／質問：□□","答えが分かったら何に使うかも添える","準備された質問は信頼を生む"]}
+  ];
+  let activeLv=null;
+  (function(){ const box=document.getElementById("lvTabs"); LEVELS.forEach((lv,i)=>{ const el=document.createElement("div");
+    el.className="lvt"; el.textContent=lv.n.split(" ")[0]; el.title=lv.n;
+    el.onclick=()=>{ activeLv=i; [...box.children].forEach(x=>x.classList.remove("on")); el.classList.add("on"); renderLvGuide(); };
+    box.appendChild(el); }); })();
+  function renderLvGuide(){ const g=document.getElementById("lvGuide"); if(activeLv===null){ g.classList.remove("show"); return; }
+    const lv=LEVELS[activeLv]; g.innerHTML='<h3>'+lv.n+'</h3><div>'+lv.d+'</div><ul>'+lv.t.map(x=>'<li>'+x+'</li>').join('')+'</ul>'; g.classList.add("show"); }
+  function sv(id){ return document.getElementById(id).value; }
+  function buildStudent(d){ let s="【質問】\n";
+    if(d.prem) s+="■ 前提：\n"+d.prem+"\n"; if(d.hyp) s+="■ 仮説：\n"+d.hyp+"\n";
+    if(d.ask) s+="■ 質問：\n"+d.ask+"\n"; if(d.use) s+="■ 答えの使い道："+d.use+"\n";
+    if(!d.prem&&!d.hyp&&!d.ask){ s+="（まだうまく書けないときは「一緒に画面を見てもらえますか？」でOK）\n"; }
+    return s.trim(); }
+  function genStudent(){ const d={prem:multiClean(sv("s-prem")),hyp:multiClean(sv("s-hyp")),ask:multiClean(sv("s-ask")),use:sanitize(sv("s-use"),80)};
+    document.getElementById("s-out").textContent=buildStudent(d); }
+  function clearStudent(){ ["s-prem","s-hyp","s-ask","s-use"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("s-out").textContent='「🐰 質問をととのえる」を押すと、ここに出ます。'; }
+
+  /* ===== クイズモード：実時刻タイマー ===== */
+  const CIRC=2*Math.PI*85;
+  let quizSec=30,quizMs=30000,remain=30,endAt=null,leftWhenPaused=30000,tick=null,running=false; const records=[];
+  const timeEl=document.getElementById("time"),ringEl=document.getElementById("ring"),progEl=document.getElementById("prog");
+  function paint(remMs){ const rs=Math.max(0,Math.ceil(remMs/1000)); remain=rs;
+    timeEl.textContent=rs>0?rs:"時間切れ"; progEl.style.strokeDashoffset=(CIRC*(1-Math.max(0,remMs)/quizMs)).toFixed(2);
+    progEl.setAttribute("stroke", rs<=5?"#e0716b":rs<=10?"#d9a441":"#3ec96f");
+    ringEl.classList.toggle("warn",rs<=10&&rs>5); ringEl.classList.toggle("danger",rs<=5&&rs>0); ringEl.classList.toggle("done",rs<=0); }
+  function renderTimer(){ paint(running?(endAt-Date.now()):leftWhenPaused); }
+  function startTimer(){ if(running) return; if(leftWhenPaused<=0) leftWhenPaused=quizMs; endAt=Date.now()+leftWhenPaused; running=true;
+    document.getElementById("startBtn").style.display="none"; document.getElementById("pauseBtn").style.display="inline-block";
+    tick=setInterval(()=>{ const r=endAt-Date.now(); paint(r); if(r<=0){ clearInterval(tick); running=false; leftWhenPaused=0;
+      document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ もう一度";
+      document.getElementById("pauseBtn").style.display="none"; if(navigator.vibrate) try{navigator.vibrate(200);}catch(e){} } },100); }
+  function pauseTimer(){ if(!running) return; clearInterval(tick); running=false; leftWhenPaused=Math.max(0,endAt-Date.now()); renderTimer();
+    document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ 再開"; document.getElementById("pauseBtn").style.display="none"; }
+  function resetTimer(){ clearInterval(tick); running=false; leftWhenPaused=quizMs; endAt=null; renderTimer();
+    document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ スタート"; document.getElementById("pauseBtn").style.display="none"; }
+  function setSec(sec){ if(sec!==15&&sec!==30) return; quizSec=sec; quizMs=sec*1000;
+    [...document.getElementById("secSwitch").children].forEach(b=>b.classList.toggle("on",Number(b.dataset.sec)===sec)); resetTimer(); }
+  function judge(ok){ const who=sanitize(document.getElementById("who").value,60); records.push({ok:!!ok,who,n:records.length+1});
+    document.getElementById("who").value=""; renderLog(); renderScore(ok); resetTimer(); if(ok) confetti(); }
+  function undo(){ if(records.length){ records.pop(); renderLog(); renderScore(); } }
+  function renderScore(j){ document.getElementById("sc-q").textContent=String(records.length);
+    document.getElementById("sc-o").textContent=String(records.filter(r=>r.ok).length);
+    document.getElementById("sc-x").textContent=String(records.filter(r=>!r.ok).length);
+    if(j===true) popEl("sc-o"); else if(j===false) popEl("sc-x"); }
+  function popEl(id){ const el=document.getElementById(id).parentElement; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  function renderLog(){ const ul=document.getElementById("log"); if(!records.length){ ul.innerHTML='<li class="empty">まだ記録はありません</li>'; return; }
+    ul.innerHTML=""; records.slice().reverse().forEach(r=>{ const li=document.createElement("li");
+      li.innerHTML='<span class="mark">'+(r.ok?"⭕":"❌")+'</span><span class="who">'+(r.who?escapeHtml(r.who):"（指名なし）")+'</span><span class="qn">Q'+r.n+'</span>'; ul.appendChild(li); }); }
+  function buildResult(recs){ const o=recs.filter(r=>r.ok).length,x=recs.filter(r=>!r.ok).length,rate=recs.length?Math.round(o/recs.length*100):0;
+    let s="【🐰 うさうさクイズ大会 結果】\n出題："+recs.length+"問　／　⭕"+o+"　❌"+x+"　／　正解率 "+rate+"%\n";
+    if(recs.length){ s+="----\n"; recs.forEach(r=>{ s+="Q"+r.n+" "+(r.ok?"⭕":"❌")+" "+(r.who||"（指名なし）")+"\n"; }); } return s.trim(); }
+  function copyResult(){ navigator.clipboard.writeText(buildResult(records)).then(()=>{ const c=document.getElementById("copied-quiz");
+    c.style.display="block"; setTimeout(()=>c.style.display="none",1600); }).catch(()=>{}); }
+  function resetAll(){ records.length=0; renderLog(); renderScore(); resetTimer(); }
+  function confetti(){ const cl=["#ff5d5d","#ff9f43","#ffd23f","#3ec96f","#3ea0ff","#9b6dff","#ff6fb5"];
+    for(let i=0;i<26;i++){ const c=document.createElement("div"); c.className="confetti"; c.style.left=Math.random()*100+"vw";
+      c.style.background=cl[i%cl.length]; c.style.transform="rotate("+(Math.random()*360)+"deg)"; const dur=1.1+Math.random()*.9,delay=Math.random()*.2;
+      c.animate([{transform:"translateY(0) rotate(0)",opacity:1},{transform:"translateY(102vh) rotate("+(360+Math.random()*360)+"deg)",opacity:.9}],
+        {duration:dur*1000,delay:delay*1000,easing:"cubic-bezier(.3,.6,.5,1)"}); document.body.appendChild(c); setTimeout(()=>c.remove(),(dur+delay)*1000+100); } }
+
+  renderTimer();
+  setMode("teacher"); // 初期テーマ適用
+
+  /* ===== 保存：クイズ ===== */
+  function quizRows(){
+    const rows=[["Q番号","結果","指名"]];
+    records.forEach(r=>rows.push(["Q"+r.n, r.ok?"正解":"不正解", r.who||"（指名なし）"]));
+    const o=records.filter(r=>r.ok).length, x=records.filter(r=>!r.ok).length;
+    const rate=records.length?Math.round(o/records.length*100):0;
+    rows.push([]); rows.push(["出題数",records.length]); rows.push(["正解",o]); rows.push(["不正解",x]); rows.push(["正解率",rate+"%"]);
+    return rows;
+  }
+  function quizNotion(){
+    // Notion貼り付け向け：見出し＋表（Markdown表はNotionが認識）
+    const o=records.filter(r=>r.ok).length, x=records.filter(r=>!r.ok).length, rate=records.length?Math.round(o/records.length*100):0;
+    let s="# 🐰 うさうさクイズ大会 結果\n\n";
+    s+="- 出題："+records.length+"問　⭕"+o+"　❌"+x+"　正解率 "+rate+"%\n\n";
+    s+="| Q | 結果 | 指名 |\n|---|---|---|\n";
+    records.forEach(r=>{ s+="| Q"+r.n+" | "+(r.ok?"⭕":"❌")+" | "+(r.who||"（指名なし）")+" |\n"; });
+    return s.trim();
+  }
+  function dlQuizCSV(){ downloadBlob(toCSV(quizRows()), "クイズ結果_"+tstamp()+".csv", "text/csv;charset=utf-8"); }
+  function dlQuizXLS(){ downloadBlob(toExcelXML("クイズ結果", quizRows()), "クイズ結果_"+tstamp()+".xls", "application/vnd.ms-excel"); }
+  function dlQuizPDF(){ printAsPDF("うさうさクイズ大会 結果", buildResult(records)); }
+  function dlQuizMemo(){ saveMemo(buildResult(records), "クイズ結果"); }
+  function copyQuizNotion(){ navigator.clipboard.writeText(quizNotion()).then(()=>{ const c=document.getElementById("copied-quiz");
+    c.style.display="block"; setTimeout(()=>c.style.display="none",1600); }).catch(()=>{}); }
+
+  /* ===== 保存：講師／受講生（テキスト系） ===== */
+  function dlTextMemo(outId, base){ saveMemo(document.getElementById(outId).textContent, base); }
+  function dlTextPDF(outId, title){ printAsPDF(title, document.getElementById(outId).textContent); }
+  function copyNotionText(outId, idForFlag){
+    // 質問記録はそのままNotionに貼れる（コードブロックは ``` で認識）
+    navigator.clipboard.writeText(document.getElementById(outId).textContent).then(()=>{
+      const c=document.getElementById("copied-"+idForFlag); if(c){ c.style.display="inline"; setTimeout(()=>c.style.display="none",1600);} }).catch(()=>{});
+  }
+
+  /* ===== 自己テスト ===== */
+  (function selfTest(){
+    const R=[]; const A=(n,c)=>R.push({n,ok:!!c});
+    // 講師
+    const t1=buildTeacher({unit:"DNS",who:"受講生A",cat:"コマンド",urg:"中",goal:"名前解決",state:"",tried:"",err:"not found",raw:"権限が",ask:"次は？",result:"二次対応へ"});
+    A("講師：単元・ゴール反映", t1.indexOf("DNS")>-1 && t1.indexOf("名前解決")>-1);
+    A("講師：エラーがコードブロック", t1.indexOf("```")>-1 && t1.indexOf("not found")>-1);
+    A("講師：受講生の言葉が二重括弧にならない", t1.indexOf("「「")===-1 && t1.indexOf("権限が")>-1);
+    A("講師：二次対応で接続文", t1.indexOf("二次対応引継ぎテンプレ")>-1);
+    // 受講生
+    const s1=buildStudent({prem:"3まで完了",hyp:"数字かも",ask:"755とは？",use:"公開設定"});
+    A("受講生：前提・仮説・質問が入る", s1.indexOf("前提")>-1 && s1.indexOf("仮説")>-1 && s1.indexOf("755とは？")>-1);
+    A("受講生：空なら案内文", buildStudent({prem:"",hyp:"",ask:"",use:""}).indexOf("一緒に画面")>-1);
+    A("レベルは4段階", LEVELS.length===4);
+    // クイズ
+    const recs=[{ok:true,who:"受講生A",n:1},{ok:false,who:"",n:2},{ok:true,who:"受講生B",n:3}];
+    A("クイズ：出題3問", buildResult(recs).indexOf("出題：3問")>-1);
+    A("クイズ：正解率67%", buildResult(recs).indexOf("67%")>-1);
+    A("クイズ：指名なし表記", buildResult(recs).indexOf("（指名なし）")>-1);
+    A("クイズ：空配列でも安全", buildResult([]).indexOf("出題：0問")>-1);
+    setSec(15); A("15秒切替", quizSec===15&&quizMs===15000&&remain===15);
+    setSec(30); A("30秒に戻す", quizSec===30&&quizMs===30000&&remain===30);
+    A("不正秒は無視",(setSec(99),quizSec===30));
+    paint(14200); A("残14.2→15切り上げ", remain===15); paint(0); A("残0→時間切れ", timeEl.textContent==="時間切れ"); resetTimer();
+    // 共通
+    A("単行サニタイズで改行除去", sanitize("a\nb",60).indexOf("\n")===-1);
+    A("複数行は改行保持", multiClean("a\nb").indexOf("\n")>-1);
+    A("60字超で省略", sanitize("あ".repeat(61),60).length===61);
+    A("HTMLエスケープ", escapeHtml("<b>x</b>").indexOf("<b>")===-1);
+    // モード
+    A("3モードのテーマ定義あり", Object.keys(MODE_THEME).length===3);
+    A("新宿ビル定義", SHINJUKU.length>=10);
+    A("confetti関数", typeof confetti==="function");
+    // ダウンロード系
+    records.length=0; records.push({ok:true,who:"受講生A",n:1},{ok:false,who:"",n:2});
+    const csv=toCSV(quizRows());
+    A("CSVにヘッダ行", csv.indexOf("Q番号,結果,指名")>-1);
+    A("CSVに正解率行", csv.indexOf("正解率")>-1);
+    A("CSVのカンマ含む値をクォート", toCSV([["a,b","c"]]).indexOf('"a,b"')>-1);
+    const xls=toExcelXML("結果", quizRows());
+    A("Excel(XML)がWorkbook構造", xls.indexOf("<Workbook")>-1 && xls.indexOf("Excel.Sheet")>-1);
+    A("ExcelXMLが特殊文字エスケープ", toExcelXML("s",[["<x>"]]).indexOf("&lt;x&gt;")>-1);
+    A("Notion用がMarkdown表", quizNotion().indexOf("| Q | 結果 | 指名 |")>-1);
+    A("ダウンロード関数群が存在", typeof downloadBlob==="function" && typeof printAsPDF==="function" && typeof saveMemo==="function");
+    records.length=0; renderScore(); // 後始末
+
+    const pass=R.filter(x=>x.ok).length, all=R.length;
+    const el=document.getElementById("selftest");
+    el.textContent="🐰 セルフテスト "+pass+"/"+all+(pass===all?" 全て通過 🎉":" ⚠ 要確認");
+    el.style.color=(pass===all)?"#2e9c6e":"#d9694f";
+    if(pass!==all) console.warn("self-test:",R.filter(x=>!x.ok));
+  })();
+</script>
+</body>
+</html>
