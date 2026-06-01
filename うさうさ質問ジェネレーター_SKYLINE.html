@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>うさうさ 質問ジェネレーター｜SKYLINE</title>
+<style>
+  /* ===== うさうさ研修工房 × 高層ビルSKYLINE：外部フォント不使用 ===== */
+  :root{
+    /* 時間帯で上書きされるテーマ変数 */
+    --sky-top:#bfe0ff; --sky-bot:#fef0d9;
+    --sun:#ffd27a; --sun-glow:rgba(255,210,122,.6);
+    --bldg-far:#cfe0f0; --bldg-mid:#a9c4dd; --bldg-near:#7e9cbb;
+    --win:#fff6d8; --win-dim:rgba(255,246,216,.35);
+    --accent:#f0846f; --accent-deep:#d9694f;
+    --ink:#243244; --ink-soft:#5d6b7d;
+    --card:rgba(255,255,255,.78); --card-line:rgba(255,255,255,.9);
+    --field-bg:rgba(255,255,255,.92);
+    --glass-shadow:0 18px 50px rgba(40,60,90,.22);
+    --radius:20px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; color:var(--ink); line-height:1.7;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bot) 78%);
+    transition:background 1.2s ease;
+    overflow-x:hidden;
+  }
+
+  /* ===== 背景：スカイライン ===== */
+  .scene{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+  .sun{position:absolute; width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, var(--sun) 0%, var(--sun-glow) 55%, transparent 72%);
+    left:72%; top:16%; transition:all 1.2s ease; filter:blur(1px);}
+  /* ビル群（多層パララックス、CSSのみ） */
+  .layer{position:absolute; left:0; right:0; bottom:0; height:62%;
+    background-repeat:repeat-x; background-position:bottom; transition:background .6s, opacity 1.2s;}
+  .far{height:46%; opacity:.7;
+    background-image:
+      linear-gradient(var(--bldg-far),var(--bldg-far));
+    -webkit-mask:repeating-linear-gradient(90deg,#000 0 38px,transparent 38px 50px);
+            mask:repeating-linear-gradient(90deg,#000 0 38px,transparent 38px 50px);}
+  /* ビルはdivで個別生成（窓表現のため） */
+  #skyline{position:absolute; left:0; right:0; bottom:0; height:60%;
+    display:flex; align-items:flex-end; gap:0; transition:opacity 1.2s;}
+  .b{position:relative; flex:0 0 auto; background:var(--bldg-near);
+    box-shadow:inset -8px 0 18px rgba(0,0,0,.12); transition:background .8s;}
+  .b.mid{background:var(--bldg-mid);} .b.far{background:var(--bldg-far);}
+  .b .top{position:absolute; top:-9px; left:50%; width:3px; height:14px; transform:translateX(-50%);
+    background:var(--bldg-near);} /* アンテナ */
+  .b .wins{position:absolute; inset:10px 8px 0; display:grid; gap:5px;
+    grid-template-columns:repeat(auto-fill, 8px); align-content:start;}
+  .b .w{width:8px; height:9px; background:var(--win-dim); border-radius:1px;}
+  .b .w.lit{background:var(--win); box-shadow:0 0 6px var(--win);}
+  /* 雲 */
+  .cloud{position:absolute; background:rgba(255,255,255,.7); border-radius:50px;
+    filter:blur(2px); opacity:.7; transition:opacity 1.2s;}
+
+  /* ===== 前面コンテンツ ===== */
+  .wrap{position:relative; z-index:2; max-width:880px; margin:0 auto; padding:26px 18px 90px;}
+
+  header{text-align:center; margin-bottom:6px;}
+  .badge{display:inline-block; font-size:12px; letter-spacing:.1em; color:#fff;
+    background:linear-gradient(90deg,var(--accent),var(--accent-deep));
+    padding:5px 16px; border-radius:999px; margin-bottom:12px;
+    box-shadow:0 6px 16px rgba(217,105,79,.4);}
+  h1{font-size:27px; margin:0 0 4px; letter-spacing:.02em; text-shadow:0 2px 10px rgba(255,255,255,.5);}
+  h1 .mini{font-size:14px; font-weight:400; color:var(--ink-soft); letter-spacing:.18em;}
+  .lead{color:var(--ink-soft); font-size:14px; margin:0;}
+  .ver{font-size:11px; color:var(--ink-soft); opacity:.7; margin-top:6px;}
+
+  /* 時間帯スイッチ */
+  .clock{display:flex; gap:7px; justify-content:center; margin:16px 0 6px; flex-wrap:wrap;}
+  .ct{font-size:13px; padding:7px 15px; border-radius:999px; cursor:pointer; user-select:none;
+    border:1.5px solid rgba(255,255,255,.7); background:rgba(255,255,255,.55);
+    color:var(--ink); font-weight:700; backdrop-filter:blur(6px); transition:all .2s;}
+  .ct.on{background:var(--accent); border-color:var(--accent); color:#fff;
+    box-shadow:0 6px 14px rgba(240,132,111,.45);}
+
+  /* うさうさ吹き出し */
+  .speech{position:relative; margin:16px 0;
+    background:rgba(255,255,255,.7); border:1px solid var(--card-line);
+    border-radius:var(--radius); padding:14px 16px 14px 56px; font-size:13.5px;
+    color:var(--ink); backdrop-filter:blur(8px); box-shadow:0 8px 22px rgba(40,60,90,.1);}
+  .speech::before{content:"🐰"; position:absolute; left:16px; top:12px; font-size:26px;}
+
+  /* ガラスカード */
+  .card{background:var(--card); border:1px solid var(--card-line);
+    border-radius:var(--radius); padding:20px; margin-bottom:18px;
+    backdrop-filter:blur(14px); box-shadow:var(--glass-shadow);}
+  .card h2{font-size:16px; margin:0 0 14px; display:flex; align-items:center; gap:9px;}
+  .card h2 .pin{font-size:16px;}
+
+  label{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 4px; font-weight:700;}
+  label .hint{font-weight:400; opacity:.85;}
+  input[type=text], select, textarea{width:100%; border:1.5px solid rgba(120,150,180,.25);
+    border-radius:12px; padding:9px 11px; font-size:14px; font-family:inherit; color:var(--ink);
+    background:var(--field-bg); transition:border-color .15s, box-shadow .15s;}
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(240,132,111,.22);}
+  textarea{resize:vertical; min-height:58px;}
+  .row{display:flex; flex-wrap:wrap; gap:12px;} .row .field{flex:1; min-width:150px;}
+  .field{margin-bottom:14px;} .field:last-child{margin-bottom:0;}
+
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:2px;}
+  .chip{font-size:12.5px; padding:6px 12px; border-radius:999px; cursor:pointer; user-select:none;
+    border:1.5px solid rgba(120,150,180,.3); background:var(--field-bg); color:var(--ink-soft); transition:all .12s;}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700;}
+
+  .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;}
+  button.btn{font-family:inherit; font-size:14px; font-weight:800; border:none; border-radius:12px;
+    padding:12px 20px; cursor:pointer; transition:transform .08s, box-shadow .15s, background .15s;}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-deep)); color:#fff;
+    box-shadow:0 8px 18px rgba(240,132,111,.5);}
+  .btn-primary:hover{transform:translateY(-1px);}
+  .btn-ghost{background:rgba(255,255,255,.7); color:var(--accent-deep); border:1.5px solid rgba(240,132,111,.4);}
+  .btn:active{transform:translateY(1px);}
+
+  .escalate{margin-top:14px; padding:12px 14px; border-radius:12px;
+    background:rgba(255,235,200,.7); border:1px solid rgba(217,164,65,.5);
+    font-size:13px; color:#7a5e2a; display:none;} .escalate.show{display:block;}
+  .escalate b{color:#b8860b;}
+
+  .out-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .out-box{background:rgba(255,255,255,.85); border:1.5px dashed rgba(240,132,111,.5);
+    border-radius:12px; padding:14px; font-size:13px; white-space:pre-wrap; word-break:break-word;
+    font-family:"SFMono-Regular",Consolas,"Courier New",monospace; color:#2f3e50; margin-top:10px; min-height:40px;}
+  .copied{color:#2e9c6e; font-size:12.5px; font-weight:800;}
+
+  #selftest{font-size:11px; text-align:center; color:var(--ink-soft); margin-top:22px; opacity:.85;}
+  footer{text-align:center; font-size:11px; color:var(--ink-soft); margin-top:26px; opacity:.75;
+    text-shadow:0 1px 6px rgba(255,255,255,.5);}
+</style>
+</head>
+<body>
+  <!-- 背景シーン -->
+  <div class="scene" id="scene">
+    <div class="sun" id="sun"></div>
+    <div class="cloud" id="c1" style="width:120px;height:26px;top:18%;left:10%;"></div>
+    <div class="cloud" id="c2" style="width:90px;height:20px;top:28%;left:60%;"></div>
+    <div class="layer far"></div>
+    <div id="skyline"></div>
+  </div>
+
+<div class="wrap">
+  <header>
+    <span class="badge">うさうさ研修工房 × 新宿SKYLINE</span>
+    <h1>🐰 質問ジェネレーター <span class="mini">SHINJUKU</span></h1>
+    <p class="lead">講師が受講生から聞き取って、ダッシュボード／FAQ用にきれいに整える</p>
+    <p class="ver" id="ver"></p>
+  </header>
+
+  <!-- 時間帯スイッチ -->
+  <div class="clock" id="clock">
+    <span class="ct" data-t="morning">🌅 朝</span>
+    <span class="ct" data-t="noon">🏙️ 昼</span>
+    <span class="ct" data-t="evening">🌇 夕方</span>
+    <span class="ct" data-t="night">🌃 夜</span>
+  </div>
+
+  <div class="speech">
+    受講生には口頭で気軽に質問してもらってOK。聞き取りながら下の欄を埋めれば、そのままコピペできる記録に。
+    答えに詰まったら「確認してお返事いたします」で大丈夫。背景は新宿西口のスカイライン、時間帯で表情が変わります🏙️
+  </div>
+
+  <div class="card">
+    <h2><span class="pin">📍</span>基本情報</h2>
+    <div class="row">
+      <div class="field"><label>単元・テーマ</label>
+        <input type="text" id="unit" placeholder="例）アクセス制御 / chmod"></div>
+      <div class="field"><label>質問者 <span class="hint">（役割表記・氏名は書かない）</span></label>
+        <input type="text" id="who" placeholder="例）受講生A"></div>
+    </div>
+    <div class="field"><label>カテゴリ</label><div class="chips" id="cat"></div></div>
+    <div class="row">
+      <div class="field"><label>緊急度</label>
+        <select id="urg"><option>低</option><option selected>中</option><option>高</option></select></div>
+      <div class="field"><label>再現性</label>
+        <select id="rep"><option>毎回</option><option>ときどき</option><option>一度のみ</option><option>未確認</option></select></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="pin">🎧</span>聞き取り</h2>
+    <div class="field"><label>① やりたいこと（ゴール）</label>
+      <textarea id="goal" placeholder="例）パーミッションを変えたい"></textarea></div>
+    <div class="field"><label>② いまの状況（どこまでできた？）</label>
+      <textarea id="state" placeholder="例）手順書の3まではできた。4でつまずいた"></textarea></div>
+    <div class="field"><label>③ 試したこと <span class="hint">（なくてもOK）</span></label>
+      <textarea id="tried" placeholder="例）打ち直した／調べたけど分からなかった"></textarea></div>
+    <div class="field"><label>④ 出ているエラー・問題</label>
+      <textarea id="err" placeholder="エラー本文をそのまま貼ってOK"></textarea></div>
+    <div class="field"><label>⑤ 受講生の言葉そのまま <span class="hint">（任意・直さず引用）</span></label>
+      <textarea id="raw" placeholder="例）「なんか権限がどうとか出て進めない」"></textarea></div>
+    <div class="field"><label>⑥ いちばん聞きたいこと</label>
+      <textarea id="want" placeholder="例）次に何をすればいい？／この言葉の意味"></textarea></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="pin">✅</span>一次対応・結果</h2>
+    <div class="field"><label>一次対応の内容</label>
+      <textarea id="resp" placeholder="確認したこと・案内したこと・試した結果"></textarea></div>
+    <div class="row">
+      <div class="field"><label>結果</label>
+        <select id="result"><option>解決</option><option>保留</option><option>二次対応へ</option></select></div>
+      <div class="field"><label>FAQ化候補</label>
+        <select id="faq"><option>いいえ</option><option>はい</option></select></div>
+    </div>
+    <div class="escalate" id="esc"><b>⚠ 二次対応へ</b>：「二次対応引継ぎテンプレ」へ接続を。希望期限・サポート方式（口頭／チャット）も添えると◎。</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="generate()">🐰 整える</button>
+    <button class="btn btn-ghost" onclick="clearAll()">クリア</button>
+  </div>
+
+  <div class="card" style="margin-top:18px;">
+    <div class="out-head">
+      <h2 style="margin:0;"><span class="pin">📋</span>記録（コピペ用）</h2>
+      <button class="btn btn-ghost" onclick="copyOut('out')">コピー</button>
+      <span class="copied" id="copied-out" style="display:none;">コピーしました ✓</span>
+    </div>
+    <div class="out-box" id="out">「🐰 整える」を押すと、ここに記録が出ます。</div>
+
+    <div class="out-head" style="margin-top:18px;">
+      <h2 style="margin:0;"><span class="pin">💬</span>1行版（チャット用）</h2>
+      <button class="btn btn-ghost" onclick="copyOut('out1')">コピー</button>
+      <span class="copied" id="copied-out1" style="display:none;">コピーしました ✓</span>
+    </div>
+    <div class="out-box" id="out1" style="min-height:20px;"></div>
+  </div>
+
+  <div id="selftest"></div>
+  <footer>面白きこともなき世を面白く　🐰 うさうさ研修工房 × 新宿SKYLINE</footer>
+</div>
+
+<script>
+  "use strict";
+  const APP_VER = "v2.0.0-skyline";
+  document.getElementById("ver").textContent = "APP_VER " + APP_VER;
+
+  /* ===== 時間帯テーマ ===== */
+  const THEMES = {
+    morning:{ /* 朝焼け */
+      "--sky-top":"#a9d2f2","--sky-bot":"#ffe6c2","--sun":"#ffd089","--sun-glow":"rgba(255,208,137,.6)",
+      "--bldg-far":"#d6e4f0","--bldg-mid":"#b6cbe0","--bldg-near":"#8aa6c2",
+      "--win":"#fff2cf","--win-dim":"rgba(255,242,207,.3)","--ink":"#2a3a4e","--ink-soft":"#5d6b7d",
+      sunPos:{left:"16%",top:"30%"}, lit:0.25, clouds:.8 },
+    noon:{ /* 真昼・クリア */
+      "--sky-top":"#8fc4f5","--sky-bot":"#dff0ff","--sun":"#fff3d0","--sun-glow":"rgba(255,243,208,.7)",
+      "--bldg-far":"#cdddec","--bldg-mid":"#a6c0d8","--bldg-near":"#7d9bbb",
+      "--win":"#eaf4ff","--win-dim":"rgba(180,210,235,.4)","--ink":"#22344a","--ink-soft":"#566578",
+      sunPos:{left:"74%",top:"12%"}, lit:0.1, clouds:.9 },
+    evening:{ /* 夕焼け */
+      "--sky-top":"#f3a66b","--sky-bot":"#ffd9a0","--sun":"#ff9d57","--sun-glow":"rgba(255,140,80,.65)",
+      "--bldg-far":"#caa6a0","--bldg-mid":"#a8807e","--bldg-near":"#7c5a5e",
+      "--win":"#ffd98a","--win-dim":"rgba(255,217,138,.35)","--ink":"#3a2730","--ink-soft":"#6e5159",
+      sunPos:{left:"20%",top:"40%"}, lit:0.55, clouds:.5 },
+    night:{ /* 夜景 */
+      "--sky-top":"#16233f","--sky-bot":"#33324f","--sun":"#cfd8ff","--sun-glow":"rgba(207,216,255,.35)",
+      "--bldg-far":"#2a3650","--bldg-mid":"#22304a","--bldg-near":"#1a2740",
+      "--win":"#ffe79b","--win-dim":"rgba(120,140,180,.25)","--ink":"#1c2840","--ink-soft":"#5a6884",
+      sunPos:{left:"78%",top:"14%"}, lit:0.8, clouds:.2 }
+  };
+
+  /* ===== スカイライン生成（新宿西口シルエット風） ===== */
+  const SKYLINE = document.getElementById("skyline");
+  const buildings = [];
+
+  // 新宿西口の象徴的ビルを左→右に近い配置で再現（比率ベース）
+  // type: flat=角型, twin=都庁ツイン, cocoon=コクーン曲線, step=段状, antenna=塔屋
+  const SHINJUKU = [
+    {hr:.55, wr:60, type:"flat",   depth:"far"},
+    {hr:.70, wr:54, type:"step",   depth:"mid"},
+    {hr:.82, wr:64, type:"cocoon", depth:"mid"},   // モード学園コクーンタワー
+    {hr:.62, wr:48, type:"flat",   depth:"far"},
+    {hr:.95, wr:88, type:"twin",   depth:"near"},  // 都庁第一本庁舎（ツイン）
+    {hr:.74, wr:58, type:"antenna",depth:"near"},  // NSビル等
+    {hr:.88, wr:70, type:"flat",   depth:"near"},  // センタービル
+    {hr:.66, wr:50, type:"step",   depth:"mid"},
+    {hr:.79, wr:62, type:"antenna",depth:"near"},  // 住友三角ビル位置
+    {hr:.58, wr:46, type:"flat",   depth:"far"},
+    {hr:.84, wr:66, type:"flat",   depth:"near"},
+    {hr:.69, wr:52, type:"step",   depth:"mid"}
+  ];
+
+  function makeWindows(b, w, h){
+    const wins=document.createElement("div"); wins.className="wins";
+    const cols=Math.max(2, Math.floor((w-16)/13));
+    wins.style.gridTemplateColumns="repeat("+cols+", 8px)";
+    const rows=Math.max(3, Math.floor((h-16)/14));
+    const cells=[];
+    for(let k=0;k<cols*rows;k++){ const wd=document.createElement("div"); wd.className="w"; wins.appendChild(wd); cells.push(wd); }
+    b.appendChild(wins);
+    return cells;
+  }
+
+  function buildSkyline(){
+    SKYLINE.innerHTML=""; buildings.length=0;
+    const sceneH = window.innerHeight;
+    const maxH = sceneH * 0.6 * 0.92;     // skylineの高さに対する最大
+    // 画面幅に合わせてパターンを繰り返し、新宿群を中央寄りに
+    const unit = SHINJUKU.slice();
+    const count = Math.max(unit.length, Math.floor(window.innerWidth/72));
+    const seq = [];
+    for(let i=0;i<count;i++){ seq.push(unit[i % unit.length]); }
+
+    seq.forEach(spec=>{
+      const w = spec.wr;
+      const h = Math.round(maxH * spec.hr);
+      const b=document.createElement("div");
+      b.className="b "+(spec.depth==="near"?"":spec.depth);
+      b.style.width=w+"px"; b.style.height=h+"px";
+
+      if(spec.type==="cocoon"){
+        // 繭型：左右にカーブ
+        b.style.borderRadius="40% 40% 6px 6px / 22% 22% 0 0";
+      } else if(spec.type==="twin"){
+        // 都庁ツイン：上部を2本に割る切り欠き
+        b.style.borderRadius="3px 3px 0 0";
+        const notch=document.createElement("div");
+        notch.style.cssText="position:absolute;top:0;left:50%;transform:translateX(-50%);width:"+Math.round(w*0.16)+"px;height:"+Math.round(h*0.42)+"px;background:var(--sky-bot);transition:background 1.2s;";
+        b.appendChild(notch);
+        // 左右に塔屋
+        ["left","right"].forEach(side=>{ const t=document.createElement("div");
+          t.style.cssText="position:absolute;top:-7px;"+side+":"+Math.round(w*0.22)+"px;width:3px;height:11px;background:var(--bldg-near);"; b.appendChild(t); });
+      } else if(spec.type==="step"){
+        // 段状：上にセットバック
+        b.style.borderRadius="3px 3px 0 0";
+        const cap=document.createElement("div");
+        cap.style.cssText="position:absolute;top:-"+Math.round(h*0.12)+"px;left:50%;transform:translateX(-50%);width:"+Math.round(w*0.6)+"px;height:"+Math.round(h*0.13)+"px;background:inherit;border-radius:2px 2px 0 0;";
+        b.appendChild(cap);
+      } else if(spec.type==="antenna"){
+        b.style.borderRadius="3px 3px 0 0";
+        const t=document.createElement("div"); t.className="top"; b.appendChild(t);
+      } else {
+        b.style.borderRadius="3px 3px 0 0";
+      }
+
+      const cells=makeWindows(b, w, h);
+      SKYLINE.appendChild(b);
+      buildings.push({el:b, cells});
+    });
+  }
+
+  function applyTheme(name){
+    const t = THEMES[name]; if(!t) return;
+    const root = document.documentElement.style;
+    Object.keys(t).forEach(k=>{ if(k.startsWith("--")) root.setProperty(k, t[k]); });
+    // 太陽位置
+    const sun = document.getElementById("sun");
+    sun.style.left = t.sunPos.left; sun.style.top = t.sunPos.top;
+    // 雲
+    document.getElementById("c1").style.opacity = t.clouds;
+    document.getElementById("c2").style.opacity = t.clouds;
+    // 窓の点灯率
+    buildings.forEach(b=>{
+      b.cells.forEach(c=>{ c.classList.toggle("lit", Math.random() < t.lit); });
+    });
+    // タブ表示
+    [...document.getElementById("clock").children].forEach(x=>x.classList.toggle("on", x.dataset.t===name));
+  }
+
+  // 時間帯ボタン
+  document.getElementById("clock").addEventListener("click", e=>{
+    const t = e.target.closest(".ct"); if(t) applyTheme(t.dataset.t);
+  });
+
+  // 起動時：現在時刻で自動選択
+  function autoTime(){
+    const h = new Date().getHours();
+    if(h>=5 && h<10) return "morning";
+    if(h>=10 && h<16) return "noon";
+    if(h>=16 && h<19) return "evening";
+    return "night";
+  }
+
+  buildSkyline();
+  applyTheme(autoTime());
+  let rt; window.addEventListener("resize", ()=>{ clearTimeout(rt);
+    rt=setTimeout(()=>{ const cur=[...document.getElementById("clock").children].find(x=>x.classList.contains("on"));
+      buildSkyline(); applyTheme(cur?cur.dataset.t:autoTime()); }, 250); });
+
+  /* ===== ジェネレーター本体 ===== */
+  const CATS = ["環境構築","コマンド","概念理解","教材操作","ネットワーク","その他"];
+  let activeCat = "";
+  (function(){ const box=document.getElementById("cat");
+    CATS.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+      el.onclick=()=>{ if(activeCat===c){activeCat="";el.classList.remove("on");}
+        else{activeCat=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");} };
+      box.appendChild(el); }); })();
+
+  document.getElementById("result").addEventListener("change", e=>{
+    document.getElementById("esc").classList.toggle("show", e.target.value==="二次対応へ"); });
+
+  function v(id){return (document.getElementById(id).value||"").trim();}
+  function line(label,val){return val ? "■ "+label+"\n"+val+"\n\n" : "";}
+
+  function buildRecord(d){
+    let s="【質問記録】\n";
+    s+="受付："+(d.date||"")+"　／　単元："+(d.unit||"-")+"　／　質問者："+(d.who||"-")+"\n";
+    s+="カテゴリ："+(d.cat||"-")+"　／　緊急度："+d.urg+"　／　再現性："+d.rep+"\n\n";
+    s+=line("① やりたいこと（事実）",d.goal);
+    s+=line("② いまの状況（事実）",d.state);
+    s+=line("③ 試したこと",d.tried);
+    if(d.err){ s+="■ ④ 出ているエラー・問題\n```\n"+d.err+"\n```\n\n"; }
+    s+=line("⑤ 受講生の言葉そのまま", d.raw ? "「"+d.raw.replace(/^「|」$/g,"")+"」" : "");
+    s+=line("⑥ 聞きたいこと",d.want);
+    s+=line("一次対応",d.resp);
+    s+="■ 結果："+d.result+"　／　FAQ化候補："+d.faq+"\n";
+    if(d.result==="二次対応へ") s+="→ 二次対応引継ぎテンプレへ接続\n";
+    return s.trim();
+  }
+  function buildOneLine(d){
+    let s="【質問】"; if(d.date)s+="["+d.date+"] ";
+    s+="単元:"+(d.unit||"-")+"／やりたいこと:"+(d.goal||"-");
+    s+="／つまづき:"+(d.state||d.err||d.want||"-");
+    s+="／結果:"+d.result+"／FAQ:"+(d.faq==="はい"?"要":"不要");
+    return s;
+  }
+  function collect(){
+    const n=new Date(), p=x=>String(x).padStart(2,"0");
+    return {date:p(n.getMonth()+1)+"/"+p(n.getDate())+" "+p(n.getHours())+":"+p(n.getMinutes()),
+      unit:v("unit"),who:v("who"),cat:activeCat,urg:v("urg"),rep:v("rep"),
+      goal:v("goal"),state:v("state"),tried:v("tried"),err:v("err"),raw:v("raw"),want:v("want"),
+      resp:v("resp"),result:v("result"),faq:v("faq")};
+  }
+  function generate(){ const d=collect();
+    document.getElementById("out").textContent=buildRecord(d);
+    document.getElementById("out1").textContent=buildOneLine(d); }
+  function clearAll(){
+    ["unit","who","goal","state","tried","err","raw","want","resp"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("urg").value="中"; document.getElementById("rep").value="毎回";
+    document.getElementById("result").value="解決"; document.getElementById("faq").value="いいえ";
+    activeCat=""; [...document.getElementById("cat").children].forEach(x=>x.classList.remove("on"));
+    document.getElementById("esc").classList.remove("show");
+    document.getElementById("out").textContent='「🐰 整える」を押すと、ここに記録が出ます。';
+    document.getElementById("out1").textContent="";
+  }
+  function copyOut(id){ const txt=document.getElementById(id).textContent;
+    navigator.clipboard.writeText(txt).then(()=>{ const t=document.getElementById("copied-"+id);
+      t.style.display="inline"; setTimeout(()=>t.style.display="none",1600); }).catch(()=>{}); }
+
+  /* ===== 自己テスト ===== */
+  (function selfTest(){
+    const R=[]; const A=(n,c)=>R.push({n,ok:!!c});
+    const r1=buildRecord({date:"06/01 10:00",unit:"DNS",who:"受講生A",cat:"コマンド",urg:"中",rep:"毎回",
+      goal:"名前解決したい",state:"",tried:"",err:"",raw:"",want:"",resp:"",result:"解決",faq:"いいえ"});
+    A("記録に単元・ゴールが入る", r1.indexOf("DNS")>-1 && r1.indexOf("名前解決したい")>-1);
+    const r2=buildRecord({date:"",unit:"",who:"",cat:"",urg:"中",rep:"毎回",goal:"",state:"",tried:"",
+      err:"command not found",raw:"",want:"",resp:"",result:"解決",faq:"いいえ"});
+    A("エラーがコードブロック化", r2.indexOf("```")>-1 && r2.indexOf("command not found")>-1);
+    const r3=buildRecord({date:"",unit:"",who:"",cat:"",urg:"高",rep:"毎回",goal:"",state:"",tried:"",
+      err:"",raw:"",want:"",resp:"",result:"二次対応へ",faq:"はい"});
+    A("二次対応で接続文が付く", r3.indexOf("二次対応引継ぎテンプレ")>-1);
+    const r4=buildRecord({date:"",unit:"",who:"",cat:"",urg:"中",rep:"毎回",goal:"",state:"",tried:"",
+      err:"",raw:"「権限がどうとか」",want:"",resp:"",result:"解決",faq:"いいえ"});
+    A("引用の二重括弧を防ぐ", r4.indexOf("「「")===-1 && r4.indexOf("権限がどうとか")>-1);
+    const o1=buildOneLine({date:"06/01",unit:"mail",goal:"起動",state:"",err:"",want:"",result:"解決",faq:"はい"});
+    A("1行版でFAQ=要", o1.indexOf("FAQ:要")>-1);
+    // テーマが4つ揃う
+    A("時間帯テーマが4つある", Object.keys(THEMES).length===4);
+    // autoTime が有効な値を返す
+    A("autoTimeが有効値を返す", THEMES.hasOwnProperty(autoTime()));
+
+    const pass=R.filter(x=>x.ok).length, all=R.length;
+    const el=document.getElementById("selftest");
+    el.textContent="🐰 セルフテスト "+pass+"/"+all+(pass===all?" 全て通過":" ⚠ 要確認");
+    el.style.color=(pass===all)?"#2e9c6e":"var(--accent-deep)";
+    if(pass!==all) console.warn("self-test:", R.filter(x=>!x.ok));
+  })();
+</script>
+</body>
+</html>
